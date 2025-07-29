@@ -16,6 +16,23 @@ ciudadano.get("/traerCiudadanos", async (req, res) => {
     }
 });
 
+ciudadano.get("/buscarCiudadano/:codigo", async (req, res) => {
+    try {
+        const connection = await getConnection();
+        const codigo = req.params.codigo;
+        const consulta = "SELECT * FROM ciudadano WHERE codigo = ?";
+        const [resultado] = await connection.query(consulta, [codigo]);
+        res.send({
+            estado: "ok",
+            data: resultado,
+        });
+        connection.end();
+    }
+    catch (err) {
+        res.send(`error: ${err}`);
+    }
+});
+
 ciudadano.post("/insertarCiudadano", async (req, res) => {
     try {
         const connection = await getConnection();
