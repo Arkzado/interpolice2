@@ -1,6 +1,9 @@
 import express from "express";
 import cors from "cors";
+import dotenv from "dotenv";
 import ciudadano from "./src/ciudadano.js";
+
+dotenv.config();
 
 const routerCiudadano = express();
 const puertoCiudadano = 3000;
