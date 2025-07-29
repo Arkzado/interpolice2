@@ -74,4 +74,24 @@ ciudadano.put("/editarCiudadano/:codigo", async (req, res) => {
     }
 })
 
+
+ciudadano.delete("/eliminarCiudadano/:codigo", async (req, res) => {
+    try {
+        const codigo = req.params.codigo;
+        const connection = await getConnection();
+        const consulta = "DELETE FROM ciudadano WHERE codigo = ?";
+        const [resultado] = await connection.query(consulta, [codigo]);
+
+        res.send({
+            estado: "ok",
+            data: resultado,
+        });
+    }
+    catch (err) {
+        res.send({
+            estado: "error",
+            data: err
+        })
+    }
+})
 export default ciudadano;
