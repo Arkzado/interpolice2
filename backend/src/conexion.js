@@ -1,10 +1,13 @@
 import mysql from "mysql2/promise";
 
-const connection = mysql.createConnection({
+const getConnection = async () => {
+  const connection = await mysql.createConnection({
     host: "localhost",
     user: "root",
     password: "",
-    database: "interpolice" 
-});
+    database: "interpolice",
+  });
+  return connection;
+};
 
-export default connection;
+export default getConnection;
