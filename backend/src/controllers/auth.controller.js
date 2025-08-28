@@ -4,8 +4,8 @@ import { Rol, Usuario } from '../models/index.js';
 
 
 export async function seedAdmin(req, res) {
-const [adminRol] = await Rol.findOrCreate({ where: { nombre: 'ADMIN' } });
-await Rol.findOrCreate({ where: { nombre: 'POLICIA' } });
+const [adminRol] = await Rol.findOrCreate({ where: { nombre: 'admin' } });
+await Rol.findOrCreate({ where: { nombre: 'policia' } });
 
 
 const email = 'admin@interpolice.local';
@@ -21,6 +21,8 @@ res.json({ ok: true });
 export async function login(req, res) {
 const { email, password } = req.body;
 const user = await Usuario.findOne({ where: { email }, include: Rol });
+
+
 if (!user) return res.status(400).json({ error: 'Credenciales inválidas' });
 const ok = await bcrypt.compare(password, user.passwordHash);
 if (!ok) return res.status(400).json({ error: 'Credenciales inválidas' });

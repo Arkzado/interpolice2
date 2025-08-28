@@ -5,11 +5,13 @@ import 'toastify-js/src/toastify.css';
 
 // SESION INICIADA
 (function protegerRuta() {
-    const usuario = sessionStorage.getItem('usuario');
-    if (!usuario) {
-        
-        window.location.href = '/index.html';
-    }
+
+  const token = localStorage.getItem('token');
+
+  if (!token) {
+
+    window.location.href = './index.html';
+  }
 })();
 
 
@@ -33,42 +35,50 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- DEFINICIONES DE CADA CRUD ---
   const crudConfig = {
     usuarios: {
-      endpoint: '/ciudadano',
+      endpoint: '/api/ciudadanos',
       title: 'Gestión de Ciudadanos',
-      headers: ['Codigo', 'Nombre', 'Apellidos', 'Apodo', 'Fecha de nacimiento', 'Planeta de origen', 'Planeta de residencia', 'Foto de ciudadano', 'Codigo QR', 'Acciones'],
+      // --- CORREGIDO ---
+      // Se ajustó "Apellidos" a "Apellido", se eliminó "Apodo" y se reorganizaron las cabeceras.
+      headers: ['Código', 'Nombre', 'Apellido', 'Nacimiento', 'Origen', 'Residencia', 'Foto', 'QR', 'Acciones'],
+
+      // --- CORREGIDO ---
+      // Se cambió el name y label de "apellidos" a "apellido" y se eliminó el campo "apodo".
       fields: [
+        { name: 'codigo', label: 'Código', type: 'text', required: true },
         { name: 'nombre', label: 'Nombre', type: 'text', required: true },
-        { name: 'apellidos', label: 'Apellidos', type: 'text', required: true },
-        { name: 'apodo', label: 'Apodo', type: 'text', required: true },
+        { name: 'apellido', label: 'Apellido', type: 'text', required: true }, // CORREGIDO
         { name: 'fecha_nacimiento', label: 'Fecha de nacimiento', type: 'date', required: true, editableOnUpdate: false },
         { name: 'planeta_origen', label: 'Planeta de origen', type: 'text', required: true, editableOnUpdate: false },
         { name: 'planeta_residencia', label: 'Planeta de residencia', type: 'text', required: true },
         { name: 'foto', label: 'Foto de ciudadano', type: 'file', required: true }
-
       ],
+
+      // --- CORREGIDO ---
+      // Se usan los nombres de propiedad correctos (apellido, qr) y se muestra la imagen.
       renderRow: (item) => `
-                        <tr data-id="${item.codigo}">
+                        <tr data-id="${item.id}">
                             <td>${item.codigo}</td>
                             <td>${item.nombre}</td>
-                            <td>${item.apellidos}</td>
-                            <td>${item.apodo}</td>
-                 <td>${new Date(item.fecha_nacimiento).toLocaleDateString('es-ES', {
+                            <td>${item.apellido}</td>
+                            <td>${new Date(item.fecha_nacimiento).toLocaleDateString('es-ES', {
         day: 'numeric',
         month: 'long',
         year: 'numeric'
       })}</td>
-                                <td>${item.planeta_origen}</td>
-                                   <td>${item.planeta_residencia}</td>
-                                      <td>${item.foto}</td>
-                                         <td>${item.codigo_qr}</td>
+                            <td>${item.planeta_origen}</td>
+                            <td>${item.planeta_residencia}</td>
+                            <td>
+                                ${item.foto ? `<img src="${API_BASE_URL}${item.foto}" alt="Foto" width="50" class="img-thumbnail">` : 'N/A'}
+                            </td>
+                            <td>
+                                ${item.qr ? `<img src="${API_BASE_URL}${item.qr}" alt="QR" width="50">` : 'N/A'}
+                            </td>
                             <td>
                                 <button class="btn btn-warning btn-sm btn-editar" title="Editar"><i class="bi bi-pencil-square"></i></button>
                                 <button class="btn btn-danger btn-sm btn-eliminar" title="Eliminar"><i class="bi bi-trash-fill"></i></button>
                             </td>
                         </tr>`
-    },
-
-
+    }
   };
 
   // --- FUNCIONES CORE ---
@@ -87,22 +97,44 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // Carga los datos desde la API
-  const loadData = async () => {
-    showLoader(true);
+  async function loadData() {
+    loader.classList.remove('d-none');
+    dataTable.innerHTML = ''; // Correcto
+
+    // 👈 Obtiene el token de localStorage
+    const token = localStorage.getItem('token');
+    if (!token) {
+      // En caso de que no exista el token, redirige a login
+      window.location.href = './index.html';
+      return;
+    }
+
     try {
       const config = crudConfig[currentCrud];
-      const response = await fetch(`${API_BASE_URL}${config.endpoint}/TraerCiudadanos`);
-      if (!response.ok) throw new Error('Error al cargar los datos.');
-      allData = await response.json();
-      renderTable(allData);
+      // 👈 Envía el token en el encabezado Authorization
+      const response = await fetch(`${API_BASE_URL}${config.endpoint}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al cargar los datos.');
+      }
+
+      const data = await response.json();
+      allData = data;
+      renderTable(data);
+
     } catch (error) {
+
       console.error(error);
-      dataTable.innerHTML = `<tr><td colspan="${crudConfig[currentCrud].headers.length}" class="text-center text-danger">${error.message}</td></tr>`;
+      showToast('Error al cargar los datos', 'danger');
+
     } finally {
-      showLoader(false);
+      loader.classList.add('d-none');
     }
   };
-
   // Cambia entre los diferentes CRUDs
   const switchCrud = (crudName) => {
     currentCrud = crudName;
@@ -178,90 +210,81 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Submit del formulario (Crear/Editar)
 
+  // main.js
+
   dataForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('dataId').value;
     const config = crudConfig[currentCrud];
     const method = id ? 'PUT' : 'POST';
+    const url = id ? `${API_BASE_URL}${config.endpoint}/${id}` : `${API_BASE_URL}${config.endpoint}`;
 
-
-    let bodyData = {};
-    let url;
-    const uniqueId = Date.now();
-
-    if (id) {
-
-      // --- LÓGICA PARA EDITAR (PUT) ---
-
-      url = `${API_BASE_URL}${config.endpoint}/editarCiudadano/${id}`;
-
-      bodyData = {
-        nombre: document.getElementById('nombre').value,
-        apellidos: document.getElementById('apellidos').value,
-        apodo: document.getElementById('apodo').value,
-        planeta_residencia: document.getElementById('planeta_residencia').value,
-        foto: `/uploads/imagen_${uniqueId}.jpg`,
-        estado: '1',
-      };
-
-    } else {
-
-      // --- LÓGICA PARA CREAR (POST) ---
-      url = `${API_BASE_URL}${config.endpoint}/insertarCiudadano`;
-
-      bodyData = {
-
-        nombre: document.getElementById('nombre').value,
-        apellidos: document.getElementById('apellidos').value,
-        apodo: document.getElementById('apodo').value,
-        fecha_nacimiento: document.getElementById('fecha_nacimiento').value,
-        planeta_origen: document.getElementById('planeta_origen').value,
-        planeta_residencia: document.getElementById('planeta_residencia').value,
-        foto: `/uploads/imagen_${uniqueId}.jpg`,
-        codigo_qr: `/uploads/QR_${uniqueId}.jpg`,
-        estado: '1'
-      };
+    // --- PASO 1: OBTENER EL TOKEN ---
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('No se encontró el token de autenticación. Por favor, inicie sesión de nuevo.');
+      window.location.href = './index.html';
+      return;
     }
 
     try {
+      // --- PASO 2: USAR FormData PARA MANEJAR ARCHIVOS Y DATOS ---
+      const formData = new FormData();
+
+      // Agregar los campos del formulario al FormData
+      config.fields.forEach(field => {
+        const input = document.getElementById(field.name);
+        if (field.type === 'file') {
+          if (input.files[0]) {
+            formData.append(field.name, input.files[0]);
+          }
+        } else if (input) {
+
+          if (method === 'PUT' && field.editableOnUpdate === false) {
+            return;
+          }
+          formData.append(field.name, input.value);
+        }
+      });
+
+
+
       const response = await fetch(url, {
         method: method,
-
         headers: {
-          'Content-Type': 'application/json'
-        },
 
-        body: JSON.stringify(bodyData)
+          'Authorization': `Bearer ${token}`
+
+        },
+        body: formData
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.mensaje || `Error ${response.status}`);
+        const errorData = await response.json().catch(() => ({ mensaje: 'Error desconocido en el servidor' }));
+        throw new Error(errorData.mensaje || `Error ${response.status}`);
       }
-
-
 
       modal.hide();
       loadData();
 
-      const operacion = method.toUpperCase() === 'POST' ? 'creado' : 'editado';
-      const color = method.toUpperCase() === 'POST' ? '#007bff' : '#2fa12dff';
-
+      const operacion = method === 'POST' ? 'creado' : 'actualizado';
       Toastify({
         text: `Registro ${operacion} con éxito`,
         duration: 3000,
         gravity: "bottom",
         position: "right",
-        backgroundColor: color,
-        style: {
-          color: method.toUpperCase() === 'PUT' ? '#fff' : '#fff' // Texto negro si es PUT
-        }
+        backgroundColor: method === 'POST' ? '#007bff' : '#2fa12dff',
       }).showToast();
 
-
     } catch (error) {
-      console.error(error);
-      alert('Error: ' + error.message);
+      console.error('Error al guardar:', error);
+      Toastify({
+        text: `Error: ${error.message}`,
+        duration: 5000,
+        gravity: "bottom",
+        position: "right",
+        backgroundColor: "#dc3545",
+      }).showToast();
     }
   });
 
@@ -273,48 +296,63 @@ document.addEventListener('DOMContentLoaded', () => {
     const row = button.closest('tr');
     const id = row.dataset.id;
     const config = crudConfig[currentCrud];
+    const token = localStorage.getItem('token'); // Obtener token para ambas operaciones
 
-    if (button.classList.contains('btn-editar')) {
-
-      // Lógica para editar
-      const response = await fetch(`${API_BASE_URL}${config.endpoint}/buscarCiudadano/${id}`);
-      const responseData = await response.json();
-
-
-      // Verificamos que la respuesta tenga la estructura esperada
-      if (!responseData.data || responseData.data.length === 0) {
-        throw new Error('Registro no encontrado en la respuesta de la API.');
-      }
-
-
-      const data = responseData.data[0];
-
-
-      document.getElementById('dataId').value = data.codigo;
-      document.getElementById('modalTitle').textContent = `Editar ${currentCrud.slice(0, -1)}`;
-      renderFormFields(data);
-      modal.show();
+    if (!token) {
+      alert('Sesión expirada, por favor inicie sesión de nuevo.');
+      return;
     }
-    if (button.classList.contains('btn-eliminar')) {
 
-      // Lógica para eliminar
+    // --- LÓGICA PARA EDITAR (CORREGIDA) ---
+    if (button.classList.contains('btn-editar')) {
+      try {
+        // 1. URL corregida y se añade el token de autorización
+        const response = await fetch(`${API_BASE_URL}${config.endpoint}/${id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+          throw new Error('Registro no encontrado para editar.');
+        }
+
+        // 2. La API devuelve el objeto directamente, no anidado en "data"
+        const data = await response.json();
+
+        // 3. Se usa el "id" numérico para el formulario, que es lo que espera el PUT
+        document.getElementById('dataId').value = data.id;
+        document.getElementById('modalTitle').textContent = `Editar ${currentCrud.slice(0, -1)}`;
+        renderFormFields(data);
+        modal.show();
+
+      } catch (error) {
+        console.error('Error al cargar datos para editar:', error);
+        Toastify({ text: error.message, backgroundColor: "#dc3545" }).showToast();
+      }
+    }
+
+    // --- LÓGICA PARA ELIMINAR (CORREGIDA) ---
+    if (button.classList.contains('btn-eliminar')) {
       if (confirm('¿Estás seguro de que deseas eliminar este registro?')) {
         try {
-          const response = await fetch(`${API_BASE_URL}${config.endpoint}/eliminarCiudadano/${id}`, { method: 'DELETE' });
-          if (!response.ok) throw new Error('No se pudo eliminar.');
-          loadData();
+          // 1. URL corregida y se añade el token de autorización
+          const response = await fetch(`${API_BASE_URL}${config.endpoint}/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
 
+          if (!response.ok) {
+            throw new Error('No se pudo eliminar el registro.');
+          }
+
+          loadData();
           Toastify({
             text: "Registro eliminado con éxito",
-            duration: 3000,
-            gravity: "bottom",
-            position: "right",
             backgroundColor: "#28a745"
           }).showToast();
 
         } catch (error) {
-          console.error(error);
-          alert('Error: ' + error.message);
+          console.error('Error al eliminar:', error);
+          Toastify({ text: error.message, backgroundColor: "#dc3545" }).showToast();
         }
       }
     }

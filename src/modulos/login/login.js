@@ -1,4 +1,4 @@
-// src/login.js
+// src/modulos/login/login.js
 
 document.addEventListener('DOMContentLoaded', () => {
     const loginForm = document.getElementById('loginForm');
@@ -7,35 +7,31 @@ document.addEventListener('DOMContentLoaded', () => {
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault(); 
 
-        const nombre = document.getElementById('nombre').value;
-        const contrasena = document.getElementById('contrasena').value;
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('contrasena').value; // 👈 Cambiado el nombre de la variable
 
-      
         errorMessage.classList.add('d-none');
 
         try {
-            const response = await fetch('http://localhost:3000/usuario/login', {
+            const response = await fetch('http://localhost:3000/api/auth/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ nombre, contrasena }),
+                body: JSON.stringify({ email, password }), // 👈 Enviamos la variable 'password'
             });
 
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.mensaje || 'Error en el inicio de sesión.');
+                throw new Error(data.error || 'Error en el inicio de sesión.');
             }
+            
+            localStorage.setItem('token', data.token);
 
-    
-            sessionStorage.setItem('usuario', JSON.stringify(data.data));
-
- 
             window.location.href = './ciudadano.html'; 
 
         } catch (error) {
-        
             errorMessage.textContent = error.message;
             errorMessage.classList.remove('d-none');
         }

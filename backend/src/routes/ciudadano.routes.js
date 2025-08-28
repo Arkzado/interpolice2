@@ -18,9 +18,9 @@ r.get('/', authRequired, listCiudadanos);
 r.get('/codigo/:codigo', getByCodigo); // público (para QR)
 r.get('/:id', authRequired, getCiudadano);
 
-r.post('/', authRequired, hasRole('ADMIN','POLICIA'), upload.single('foto'), createCiudadano);
-r.put('/:id', authRequired, hasRole('ADMIN','POLICIA'), upload.single('foto'), updateCiudadano);
-r.delete('/:id', authRequired, hasRole('ADMIN'), deleteCiudadano);
+r.post('/', authRequired, upload.single('foto'), createCiudadano);
+r.put('/:id', authRequired, hasRole('admin','policia'), upload.single('foto'), updateCiudadano);
+r.delete('/:id', authRequired, hasRole('admin'), deleteCiudadano);
 
 // 👇 importante para poder importarlo como default
 export default r;

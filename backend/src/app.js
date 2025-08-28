@@ -17,7 +17,7 @@ const __dirname = path.dirname(__filename);
 export const app = express();
 
 // Middlewares globales
-app.use(helmet());
+app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(cors());
 app.use(morgan('dev'));
 app.use(express.json());
