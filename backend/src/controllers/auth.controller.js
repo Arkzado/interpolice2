@@ -8,10 +8,10 @@ const [adminRol] = await Rol.findOrCreate({ where: { nombre: 'admin' } });
 await Rol.findOrCreate({ where: { nombre: 'policia' } });
 
 
-const email = 'admin@interpolice.local';
+const email = 'admin@gmail.com';
 const exists = await Usuario.findOne({ where: { email } });
 if (!exists) {
-const passwordHash = await bcrypt.hash('admin123', 10);
+const passwordHash = await bcrypt.hash('usuario123', 10);
 await Usuario.create({ nombre: 'Admin', email, passwordHash, rolId: adminRol.id });
 }
 res.json({ ok: true });
